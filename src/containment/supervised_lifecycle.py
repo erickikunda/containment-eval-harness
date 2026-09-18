@@ -96,7 +96,7 @@ class SupervisedSimulationController(SimulationController):
                     replay.total_output_bytes,
                     metadata=(
                         {
-                            "runner": "local_llama_cpp",
+                            "runner": "local_ollama",
                             "accounting": "server_reported_tokens",
                             "configuration": replay.model_dump(mode="json"),
                             "server_identity_verified": False,

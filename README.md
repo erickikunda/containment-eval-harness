@@ -6,7 +6,7 @@ controller with dedicated EC2 experiment workers. Deployment and inference are s
 
 **Current status: supervised local simulation, AWS preparation, and read-only inspection.**
 Local simulation, evidence fixtures, deployment planning, offline asset preflight, and optional
-AWS metadata inspection, bounded scripted replay, and a local llama.cpp model adapter are available.
+AWS metadata inspection, bounded scripted replay, and a local Ollama model adapter are available.
 The model adapter supports only benign validation with pure fixture tools. Adversarial agent execution,
 experiment containers/VMs, AWS provisioning, live network enforcement, independent watchdogs,
 and real escape detection are not implemented. A successful fixture is not evidence of containment or agent capability.
@@ -20,7 +20,7 @@ faults to stop processing. New CLI simulations integrate these components and re
 seals before cleanup; production transport and live controller integration remain pending.
 The `replay` command adds scripted responses, explicit echo/fixture tool permissions, durable
 budget reservations, and recovery without retrying uncertain actions. It makes no model calls.
-The separate `local-model` command can contact an operator-provisioned loopback llama.cpp server;
+The separate `local-model` command can contact an operator-provisioned loopback Ollama server;
 its automated Docker rehearsal uses a test server with no real inference.
 See [local model setup, accounting, and cancellation limits](docs/local-model.md).
 

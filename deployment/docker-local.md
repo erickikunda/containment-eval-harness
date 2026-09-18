@@ -96,7 +96,7 @@ There is no supported release-quarantine or resume command. Refer to
 This lab supports repeatable Linux integration tests, operator demonstrations, additional failure
 injection, and the [bounded replay runner](../docs/replay-runner.md) before cloud resources exist.
 The [local model adapter](../docs/local-model.md) is available for an operator-provisioned
-llama.cpp server. Real model weights, a pinned runtime, and an actual inference acceptance run
+Ollama server. Real model weights, a pinned runtime, and an actual inference acceptance run
 remain separate from the automatic wire rehearsal. Private services and independent model-server
 termination still need implementation.
 

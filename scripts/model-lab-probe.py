@@ -20,7 +20,7 @@ ROOT = Path("/var/lib/containment")
 
 def run(mode):
     def transform(path, reply):
-        if path == "/completion":
+        if path == "/api/generate":
             if mode == "timeout":
                 time.sleep(1)
             if mode == "crash":
@@ -32,7 +32,6 @@ def run(mode):
         config = json.loads(Path("/examples/local-model-script.json").read_text())
         config.update(
             port=port,
-            model_identity="wire-fixture-no-model",
             runtime_identity="test-only-http-server",
         )
         if mode == "timeout":
@@ -65,7 +64,7 @@ def verify():
             assert report["state"] == "complete"
             run = report["replay"]
             assert run["accounting"] == "server_reported_tokens"
-            assert run["metadata"]["configuration"]["model_identity"] == "wire-fixture-no-model"
+            assert run["metadata"]["configuration"]["runtime_identity"] == "test-only-http-server"
             assert run["metadata"]["server_termination_confirmed"] is False
             anchor = store.anchor(trial)
             collector.verify(trial, anchor)

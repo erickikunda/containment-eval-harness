@@ -1,144 +1,142 @@
-# Local model adapter and Docker rehearsal
+# Local Ollama adapter and Docker rehearsal
 
-`containment local-model` connects the supervised lab runner to a local llama.cpp server.
-It can run a model-driven loop with the same two pure tools as replay: `echo` and lookup in
-explicit synthetic fixtures. It accepts only fake deployment, simulation boundary, validation
-track, local inference, and disconnected connectivity. Outcomes remain `simulation_only` because
-the containment backend is still a resource marker. No shell, filesystem, network, or process tool
-is exposed to the model.
+`containment local-model` connects the supervised lab runner to an already running local Ollama
+server. The model can choose between two pure tools: `echo` and lookup in explicit synthetic
+fixtures. Only fake deployment, simulation boundary, validation track, local inference, and
+disconnected connectivity are admitted. Outcomes remain `simulation_only`: the containment
+backend is still a resource marker, even when inference is real. No shell, filesystem, network,
+or process tool is exposed to the model.
 
-The adapter uses Python's standard library; no new Python dependency or model download is required.
-A model runtime and its weights must be provisioned separately. The automated rehearsal uses a
-test server and **does not demonstrate real inference or model quality**.
+The adapter uses Python's standard library. It never installs, pulls, creates, or deletes a model,
+and does not start or restart Ollama. Private/cloud inference is outside this slice.
 
-## Run the automated Docker rehearsal
+## Use your installed Ollama model
 
-From the repository root, with Docker running and uv available:
+Ollama must listen on `127.0.0.1:11434` in the same network namespace as the controller. Inspect
+what is installed and the running version:
+
+```sh
+ollama list
+curl http://127.0.0.1:11434/api/tags
+curl http://127.0.0.1:11434/api/version
+```
+
+Copy `examples/local-model-script.json` to a working file. Set `model` to the full installed name
+including its tag, `model_digest` to its 64-character digest from the inventory, and
+`runtime_identity` to the runtime version/build label. The example names
+`LiquidAI/lfm2.5-1.2b-instruct:latest`; another installed completion model can be selected by changing
+both the name and digest. No automatic download occurs if it is absent.
 
 ```sh
 uv sync --locked --extra dev
-sh scripts/check-docker-simulation.sh
-```
-
-The connected build prepares the installed package image. All test containers then run with
-`--network none`, UID 10001, a read-only root filesystem, no capabilities, and resource limits.
-Only loopback is available; no port is published. The new test server runs inside that network
-namespace and exposes the two expected HTTP endpoints. It returns predetermined responses based
-on the tool history and uses byte values as fake token IDs; it loads no weights.
-
-In addition to the existing four simulation/replay trials, the model-adapter rehearsal checks:
-
-1. A complete tokenize/generate/lookup/generate/echo/generate/finish sequence through the CLI.
-2. A generation timeout with a retained uncertain reservation and no tool dispatch.
-3. SIGKILL of the controller process after the server receives a generation request, followed by
-   reconciliation from a fresh container without a model server.
-4. Three retained seals, incomplete evidence on failures, cleanup, and idempotent reconciliation.
-
-Reports are saved under the printed `.harness/model-lab.*` directory. The dedicated temporary
-volume is removed on success and retained on failure. After building the current image, the model
-checks alone can be run with `sh scripts/check-docker-model.sh`. CI runs both sets of checks.
-
-## Connect an actual local runtime
-
-Use a dedicated llama.cpp server with a prepositioned model, bound to `127.0.0.1:8080` in the same
-network namespace as the controller. Keep its model fixed for the entire trial; disable unrelated
-server features/tools and do not use a shared multi-model router. The adapter cannot authenticate
-the process listening on loopback. Run the lab only where that namespace is trusted.
-
-For an already installed `llama-server`, a starting configuration is:
-
-```sh
-llama-server --model /absolute/path/to/model.gguf --host 127.0.0.1 --port 8080 \
-  --ctx-size 4096 --parallel 1
-```
-
-This starts a long-running server separately from the harness. Hardware limits, model loading,
-and stopping that server are operator responsibilities. The harness never launches a command
-chosen by configuration or by model output. In Docker, use a separately provisioned, pinned model
-image and read-only weights; place both processes in a network namespace with no external
-interfaces (for example, the controller joining an offline server container's namespace).
-No model image is bundled, downloaded, or tested by this PR. Model-specific image commands depend
-on the selected runtime image and hardware.
-
-Copy `examples/local-model-script.json` to a working configuration and replace `model_identity`
-and `runtime_identity` with the model file SHA-256 and runtime build/image digest. These are
-operator-supplied provenance labels, not server attestations. Set `port` if necessary. Then run:
-
-```sh
 uv run containment validate examples/local-model-scenario.json --local-model
 uv run containment --state-dir .harness-model local-model \
-  examples/local-model-scenario.json /absolute/path/to/local-model-script.json
+  examples/local-model-scenario.json examples/local-model-script.json
 uv run containment --state-dir .harness-model list
 ```
 
-The example requests lookup and echo of a synthetic greeting, then a final answer. Models can
-refuse, return invalid JSON, finish early, or exhaust their budget. A successful `finish` means
-the runner completed; it does not grade whether the model followed every task instruction.
-The prompt uses a plain completion scaffold, not a model-specific chat template. Select a
-completion-capable model and evaluate its behavior before relying on the example as a demonstration.
+The example asks for a greeting lookup, an echo of its value, and a final answer. Before each
+inference request, the adapter checks the installed model's reported digest and rejects remote
+model metadata, cloud-named models, and non-GGUF inventory entries. This is a consistency check
+against a trusted local server, not an authenticated attestation or protection against a concurrent
+model replacement. Keep the selected model fixed during a trial.
 
-Exit codes follow replay: 0 for a completed lab run; 1 for a persisted error/quarantine outcome;
-2 for input/setup failures. Keep the trial report and inspect the `replay` field (the existing
-journal name retained for compatibility). Its metadata distinguishes `local_llama_cpp` from
-scripted replay. On interruption, use `reconcile` with the same state directory; it never resumes
-or retries model/tool actions. Reconciliation confirms marker cleanup, not model-server shutdown.
+Use an operator-controlled local runtime with cloud features disabled (`OLLAMA_NO_CLOUD=1`) for
+the offline deployment, plus actual network isolation. Do not restart an existing shared Ollama
+service merely to run this example. Localhost restricts the harness connection; it does not
+independently prevent the Ollama process from reaching the internet. See
+[Ollama's local-only configuration](https://docs.ollama.com/faq#how-do-i-disable-ollama-cloud-features).
 
-## Request and accounting contract
+The request uses Ollama's stored prompt template around the harness context. A JSON
+schema describes the permitted actions and fixture keys, and the runner independently revalidates
+all output. Models can still finish early, repeat actions, refuse, or exhaust their budget. A
+completed run is not a task-quality verdict or a containment finding.
 
-The adapter uses llama.cpp's native `/tokenize` and `/completion` endpoints, not its chat or tool
-execution APIs. It creates a prompt from the task, allowed tool descriptions/fixture keys, and
-prior bounded responses/results. The complete context must fit 32 KiB; it is never silently
-truncated. Fixture values enter the context only through an authorized lookup.
+Exit codes: 0 for completed lab execution, 1 for a persisted error/quarantine, 2 for input/setup
+failure. The existing report field `replay` is retained for journal compatibility; its metadata
+identifies `local_ollama` and the complete bounded configuration. `runtime_identity` remains an
+operator-supplied label. `server_identity_verified` and `server_termination_confirmed` remain false.
 
-Before contacting the server, the runner atomically reserves one model call,
-`max_input_tokens + max_new_tokens`, and `max_response_bytes` in SQLite. Tokenization occurs inside
-that reservation. Token IDs must be nonnegative integers and fit the input allowance; otherwise
-generation is never requested. The exact returned IDs are sent as the completion prompt.
-The request disables prompt caching and streaming, requests one completion with a finite
-`n_predict`, and uses fixed temperature/seed settings plus JSON-object grammar. Reproducibility
-still depends on the runtime, model, and hardware.
+## Automated offline Docker rehearsal
 
-Completion settlement requires a bounded text result, matching `tokens_evaluated`, bounded
-`tokens_predicted`, and no reported context truncation. The journal records input plus generated
-tokens as **server-reported tokens**, distinct from replay's byte units. It does not independently
-validate the tokenizer or meter server computation. The upstream API notes that `n_predict` can
-slightly overshoot for partial multibyte characters; this adapter rejects such an over-limit
-response and retains the reservation. This cannot undo computation already performed by a server.
+With Docker running and build connectivity, run from the repository root:
 
-Unused reserved capacity is released only after a valid bounded result is committed. A timeout,
-disconnect, invalid usage report, or crash leaves the full reservation charged and uncertain.
-There are no automatic retries. A bounded but semantically invalid model message may already have
-settled usage; it still stops the loop before unauthorized tool execution. Tool and cumulative
-output budgets retain the replay rules.
+```sh
+sh scripts/check-docker-simulation.sh
+```
 
-The supported profile has no metered provider billing. `model_cost_microusd: 0` means no provider
-cost integration, not zero hardware or electricity cost. Paid/private services need a separate
-adapter with authenticated scope, pricing, and provider-specific usage semantics.
+The connected build prepares the installed package. Test containers then run with `--network none`,
+UID 10001, read-only root filesystems, no capabilities, and resource limits. No ports are published.
+In addition to four simulation/replay trials, three model-adapter trials exercise:
 
-## Transport, evidence, and cancellation limits
+1. Ollama inventory/generation requests through the CLI, two tool results, and final output.
+2. A generation timeout that retains its charge without dispatching a tool.
+3. SIGKILL after the server receives a generation request, followed by recovery in a fresh
+   container without a server, no retry, and verification of all retained seals.
 
-Only numeric IPv4 loopback and the configured port are used. There is no DNS, proxy environment
-support, URL override, redirect following, authentication header, or retry. Request JSON is capped
-at 256 KiB, response headers at 8 KiB, and response bodies at 128 KiB. HTTP responses must have a
-single valid Content-Length; chunked/compressed bodies and non-200 status fail closed. This is a
-deliberately narrow HTTP profile, not a general HTTP client.
+This test uses a small **synthetic Ollama API fixture**, not model weights. It assigns synthetic
+usage counts and validates the wire path, accounting, and recovery. The default offline Docker
+namespace cannot reach Ollama running on the host. Run the real-model CLI example on the host;
+for a future offline container deployment, provision Ollama and its preloaded weights in the
+same offline network namespace as the controller. No host-network or external gateway access is
+added by this change.
 
-Each endpoint request has an absolute timeout, including headers and body. The runner checks
-evidence health and renews its lease approximately every 100 ms while awaiting I/O. The trial's
-hard deadline still bounds the entire run. A failed check cancels the task and closes the local
-socket before any subsequent tool dispatch. These checks run in the controller process; a stalled
-or killed controller does not provide an independent watchdog for the model server.
+Reports are saved under `.harness/model-lab.*`. Temporary state volumes are removed on success
+and retained on failure. After building the current image, use `sh scripts/check-docker-model.sh`
+to run just the model checks. CI uses the same fixture; no model downloads or live inference occur
+in CI.
 
-`server_termination_confirmed` and `server_identity_verified` remain false. A closed connection,
-response flag, or cleaned fake marker is not proof that server work stopped. An interrupted trial
-must never be treated as safe server reuse without the operator inspecting/stopping the dedicated
-runtime. Independent termination and authenticated private-service inference remain future work.
+## Budgets and usage
 
-The full bounded configuration, its digest, prompt hashes, response/result records, and usage are
-retained locally. Operator-supplied runtime/model labels are explicitly unverified. Treat stored
-model text as untrusted data. Seals remain local lab evidence, not externally protected production
-evidence. Transport/tool-loop tests do not establish AWS containment.
+The runner builds context from the task, tool descriptions/fixture keys, and prior bounded
+responses/results. It enforces a 32 KiB prompt limit and a conservative admission rule:
+`UTF-8 prompt bytes + 64 <= max_input_tokens`. This leaves some slack for tokenizer/template overhead and avoids
+sending large contexts. It is **not exact tokenization** and cannot prove that a particular Ollama
+runtime never truncates a prompt. The adapter does not silently truncate its own context.
 
-Protocol reference: [llama.cpp server API](https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md).
-Compatibility with the selected pinned runtime and real weights still requires a live acceptance
-run; the test server is only a wire-contract fixture.
+Before either inventory or generation I/O, SQLite reserves one model call,
+`max_input_tokens + max_new_tokens`, and `max_response_bytes`. The finite `num_predict` and
+`num_ctx` options bound requested generation/context sizes. Streaming and thinking are disabled;
+temperature and seed are fixed. The adapter sends only `/api/tags` and `/api/generate` requests.
+
+Usage arrives after generation. A response settles only when `prompt_eval_count` and `eval_count`
+are positive integers within their individual allowances, the model name matches, generation
+reports a normal stop, and the text fits its byte limit. Reports label this **server-reported
+tokens**, not independently measured usage. The adapter rejects hidden thinking, incomplete
+responses, length-limit stops, and invalid usage. It cannot undo work already performed by a
+misbehaving server. See the [Ollama generation API](https://docs.ollama.com/api/generate).
+
+Unused reservation capacity is released only on valid committed results. Timeouts, disconnects,
+invalid usage, and crashes retain the full reservation as uncertain. There are no automatic retries.
+A bounded but semantically invalid model message may have settled usage before the runner rejects
+its action. Tool and cumulative output budgets retain the replay rules. Provider billing is not
+integrated; `model_cost_microusd: 0` does not mean hardware/electricity costs are zero.
+
+## Transport and stop behavior
+
+Only numeric IPv4 loopback and the configured port are used. No DNS, proxy settings, redirects,
+authentication headers, or URL overrides are supported. Requests are capped at 256 KiB, response
+headers at 8 KiB, and decoded bodies at 128 KiB. Content-Length and bounded HTTP chunked framing
+are supported; ambiguous lengths, compression, chunk extensions/trailers, and non-200 status fail
+closed. Chunked transfer framing is different from Ollama token streaming, which remains disabled.
+
+Each HTTP request has an absolute timeout, including the complete body. While waiting, the
+controller checks evidence health and renews its lease approximately every 100 ms. A deadline or
+health failure cancels I/O and closes the local socket before any later tool dispatch. Recovery
+never resumes inference or tools.
+
+Closing a socket does not prove the server stopped generating. Reconciliation confirms fake
+marker cleanup only. The controller/collector/watchdog still share a process and compromise domain;
+independent server termination and authenticated private-service inference remain future work.
+Preserve failed trial evidence and inspect the dedicated runtime before reusing it after an
+ambiguous interruption. Local seals do not establish AWS containment.
+
+## Observed local acceptance run
+
+A development run with Ollama 0.33.2 and the example's installed
+`LiquidAI/lfm2.5-1.2b-instruct:latest` model completed three generations and two lookups, then returned
+`Hello from a synthetic fixture`. The server reported 686 total tokens, and the retained evidence
+seal verified. The model repeated lookup instead of performing the requested echo: transport,
+accounting, tools, and finalization worked, but this was not a full task-following success. The
+Docker fixture separately exercises lookup followed by echo. This observation is not a guarantee
+of future model behavior or AWS containment.

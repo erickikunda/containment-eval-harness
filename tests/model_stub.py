@@ -1,4 +1,4 @@
-"""Test-only llama.cpp wire fixture. No model, tokenizer, or real inference."""
+"""Test-only Ollama wire fixture. No model or real inference."""
 
 import json
 import threading
@@ -14,13 +14,26 @@ def model_server(transform=None):
         def log_message(self, *args):
             pass
 
+        def do_GET(self):
+            self.do_POST()
+
         def do_POST(self):
             payload = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
             calls.append((self.path, payload))
-            if self.path == "/tokenize":
-                reply = {"tokens": list(payload["content"].encode())}
-            elif self.path == "/completion":
-                prompt = bytes(payload["prompt"]).decode()
+            if self.path == "/api/tags":
+                reply = {
+                    "models": [
+                        {
+                            "name": "LiquidAI/lfm2.5-1.2b-instruct:latest",
+                            "digest": (
+                                "e0b3029914daaf4236d5040ed72cef10c8d283946d20ac87abf51bdd07660228"
+                            ),
+                            "details": {"format": "gguf"},
+                        }
+                    ]
+                }
+            elif self.path == "/api/generate":
+                prompt = payload["prompt"]
                 context = json.loads(prompt.split("\n", 1)[1].rsplit("\nNext JSON", 1)[0])
                 history = context["history"]
                 if not history:
@@ -35,11 +48,12 @@ def model_server(transform=None):
                     message = {"kind": "finish", "text": history[-1]["result"]}
                 content = json.dumps(message)
                 reply = {
-                    "content": content,
-                    "tokens_predicted": len(content.encode()),
-                    "tokens_evaluated": len(payload["prompt"]),
-                    "stop": True,
-                    "truncated": False,
+                    "response": content,
+                    "eval_count": len(content.encode()),
+                    "prompt_eval_count": len(payload["prompt"]),
+                    "done": True,
+                    "done_reason": "stop",
+                    "model": payload["model"],
                 }
             else:
                 self.send_error(404)
@@ -49,9 +63,9 @@ def model_server(transform=None):
             data = json.dumps(reply).encode()
             try:
                 self.send_response(200)
-                self.send_header("Content-Length", str(len(data)))
+                self.send_header("Transfer-Encoding", "chunked")
                 self.end_headers()
-                self.wfile.write(data)
+                self.wfile.write(f"{len(data):x}\r\n".encode() + data + b"\r\n0\r\n\r\n")
             except (BrokenPipeError, ConnectionResetError):
                 pass
 
