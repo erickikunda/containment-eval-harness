@@ -18,7 +18,8 @@ of a developer test or CLI smoke test.
 | 4 | Fargate application backend and external controller | Application scenarios only; unknown termination stays unresolved; VM scenarios rejected | Planned |
 | 5 | EC2 VM backend, guest transport, watchdog and infrastructure termination | Actual VM isolation, deadline, outage, stop verification and reset tests pass on dedicated workers | Planned |
 | 6a | Bounded scripted replay/tool runner with durable budgets | Reserve before actions; output/call/unit limits; evidence/lease checks; interrupted actions never retry | Implemented locally and in Docker; replay units are UTF-8 bytes, not provider tokens |
-| 6b | Local/private inference adapters and live agent runner | Bounded transport, tokenizer/cost accounting, authenticated scope, ambiguous timeout handling, isolated tool execution | Planned |
+| 6b | Local Ollama adapter for benign validation | Bounded loopback transport, conservative token reservations, usage validation, timeout/evidence cancellation, no retries after ambiguous requests | Implemented with a Docker wire fixture; real weights/runtime acceptance pending; no independent server termination |
+| 6c | Private inference and production agent runner | Authenticated scope, metered cost accounting, independently verified termination, isolated tool execution | Planned |
 | 7 | Scenario suite and reports | Directed/ordinary/validation tracks separate; repeated results include validity and evidence | Planned |
 | 8 | Multiple workers and trials | Cross-trial isolation, orphan discovery and concurrency failure campaign pass | Planned |
 

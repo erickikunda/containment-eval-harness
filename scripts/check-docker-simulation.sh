@@ -84,3 +84,6 @@ assert replay_recovery[0]['replay']['actions'][-1]['state'] == 'uncertain'
 print('Docker simulation/replay SIGKILL recovery passed; four retained seals verified.')
 PY
 lab_passed=true
+
+# Exercise the model adapter's real HTTP path with an explicitly synthetic server.
+sh scripts/check-docker-model.sh

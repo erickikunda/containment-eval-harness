@@ -12,12 +12,9 @@ from containment.models import StrictModel
 from containment.replay_journal import ReplayJournal
 
 
-class ReplayScript(StrictModel):
+class ToolScript(StrictModel):
     schema_version: Literal[1]
     prompt: str = Field(max_length=2048)
-    responses: tuple[Annotated[str, Field(max_length=8192)], ...] = Field(
-        min_length=1, max_length=32
-    )
     allowed_tools: frozenset[Literal["echo", "lookup"]]
     fixtures: dict[
         Annotated[str, Field(pattern=r"^[a-z][a-z0-9_-]{0,63}$")],
@@ -35,6 +32,12 @@ class ReplayScript(StrictModel):
         ).hexdigest()
 
 
+class ReplayScript(ToolScript):
+    responses: tuple[Annotated[str, Field(max_length=8192)], ...] = Field(
+        min_length=1, max_length=32
+    )
+
+
 class ToolCall(StrictModel):
     kind: Literal["tool"]
     name: str = Field(max_length=64)
@@ -49,7 +52,7 @@ class Finish(StrictModel):
 MESSAGE = TypeAdapter(Annotated[ToolCall | Finish, Field(discriminator="kind")])
 
 
-def execute_tool(call: ToolCall, script: ReplayScript) -> str:
+def execute_tool(call: ToolCall, script: ToolScript) -> str:
     if call.name not in script.allowed_tools:
         raise ValueError("Tool is not allowed")
     if call.name == "echo" and set(call.arguments) == {"text"}:

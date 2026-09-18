@@ -68,8 +68,17 @@ def resolve(scenario: Scenario, policy: SafetyPolicy) -> Manifest:
         raise ValueError(f"Deployment lacks capabilities: {', '.join(sorted(missing))}")
     if scenario.connectivity == "disconnected" and Capability.EVIDENCE in required:
         raise ValueError("Disconnected profile has no independent external-evidence channel")
-    if scenario.deployment == Deployment.FAKE and scenario.inference != "replay":
-        raise ValueError("Fake deployment supports replay inference only")
+    if (
+        scenario.deployment == Deployment.FAKE
+        and scenario.inference != "replay"
+        and not (
+            policy == local_model_policy()
+            and scenario.inference == "local"
+            and scenario.boundary == Boundary.SIMULATION
+            and scenario.connectivity == "disconnected"
+        )
+    ):
+        raise ValueError("Fake deployment requires replay or the dedicated local-model lab policy")
     return Manifest(scenario=scenario, policy=policy, required_capabilities=required)
 
 
@@ -88,6 +97,10 @@ def replay_policy() -> SafetyPolicy:
             ),
         }
     )
+
+
+def local_model_policy() -> SafetyPolicy:
+    return replay_policy().model_copy(update={"policy_id": "local-model-lab-v1"})
 
 
 def canonical_manifest(manifest: Manifest) -> str:

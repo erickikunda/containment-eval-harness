@@ -2,7 +2,8 @@
 
 Docker provides a Linux integration environment while AWS provisioning is pending. This workflow
 tests the installed package, persistent journals, evidence sealing, and controller crash recovery.
-It uses the existing fake backend: it does not run agents, model calls, exploits, nested containers,
+It uses the existing fake backend and a model-server wire fixture: it does not load a real model,
+run exploits, nested containers,
 or real containment experiments. The controller, collector, and watchdog still share one process
 and compromise domain. Docker success is not evidence of AWS isolation or independent termination.
 
@@ -27,6 +28,10 @@ The script builds the pinned preflight image, runs the existing offline prefligh
    result settlement and recovers it without retrying the uncertain action.
 7. Verifies all four retained evidence seals, resource cleanup, and explicit incomplete evidence for
    the interrupted trial. The interrupted record must have no replayed synthetic events.
+
+The script then runs the [model-adapter rehearsal](../docs/local-model.md) on a separate volume:
+a loopback HTTP tool loop, generation timeout, and SIGKILL/recovery, with three additional seals.
+The fixture performs no real inference.
 
 Each container runs as UID/GID 10001 with no network, a read-only root filesystem, all capabilities
 dropped, no-new-privileges, and CPU/memory/PID limits. Docker's init process supervises the controller
@@ -90,8 +95,10 @@ There is no supported release-quarantine or resume command. Refer to
 
 This lab supports repeatable Linux integration tests, operator demonstrations, additional failure
 injection, and the [bounded replay runner](../docs/replay-runner.md) before cloud resources exist.
-Future local model or service integration needs its own implementation and resource/network design;
-this change does not supply those features.
+The [local model adapter](../docs/local-model.md) is available for an operator-provisioned
+Ollama server. Real model weights, a pinned runtime, and an actual inference acceptance run
+remain separate from the automatic wire rehearsal. Private services and independent model-server
+termination still need implementation.
 
 Dedicated EC2/Fargate execution adapters, actual network and identity enforcement, externally
 protected evidence, independent watchdog deployment, and verified infrastructure termination still
