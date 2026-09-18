@@ -74,7 +74,7 @@ jobs:
           "$GITHUB_WORKSPACE/.harness/wheel-smoke/bin/containment" --state-dir "$RUNNER_TEMP/fixture-state" evidence-fixture positive
 
   offline-image:
-    name: Offline preflight image
+    name: Offline Docker integration
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
@@ -90,8 +90,8 @@ jobs:
           enable-cache: false
       - name: Install locked dependencies
         run: uv sync --locked
-      - name: Build image and run offline as non-root
-        run: sh scripts/check-offline-image.sh
+      - name: Check offline preflight, simulation, and crash recovery
+        run: sh scripts/check-docker-simulation.sh
 
   ci:
     name: CI

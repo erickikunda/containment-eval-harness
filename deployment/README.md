@@ -1,5 +1,9 @@
 # Private AWS foundation: local preparation
 
+For a Linux simulation/recovery environment while AWS is pending, use the
+[local Docker lab](docker-local.md). It extends the preflight image with persistent simulation
+state and a repeatable container-crash test; it does not deploy an experiment backend.
+
 This directory supports **preparation**, not AWS provisioning or experiment admission. The example
 account, security group, nodegroup/profile names, and ECR digest are placeholders. Planning and
 preflight run locally. The separate [AWS inspector](../docs/aws-inspection.md) contacts AWS only

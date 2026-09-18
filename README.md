@@ -67,6 +67,7 @@ collector-to-watchdog integration remain future work. [Evidence protocol and lim
 - [Watchdog lease core and integration gates](docs/watchdog.md)
 - [Evidence health and watchdog integration](docs/evidence-supervision.md)
 - [Supervised simulation lifecycle and recovery](docs/supervised-lifecycle.md)
+- [Local Docker simulation lab](deployment/docker-local.md)
 - [Scenario example](examples/simulation.json)
 
 Dependencies are locked in `uv.lock`. Building and dependency installation may use the internet;
@@ -83,6 +84,9 @@ still follow the constraints in `pyproject.toml`.
 
 An additional Docker job builds the preflight image and runs it offline as a non-root user with a
 read-only filesystem. It verifies asset integrity and confirms AWS readiness remains blocked.
+It also runs supervised simulations on a persistent volume, kills a test controller, and verifies
+recovery and retained evidence from fresh containers. Run it locally with
+`sh scripts/check-docker-simulation.sh`; see the Docker lab guide above.
 
 The workflow uses commit-pinned actions, a fixed uv version, read-only repository permissions,
 and no AWS credentials. It exercises local simulations and fixtures only. These hosted runners
