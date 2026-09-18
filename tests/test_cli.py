@@ -29,9 +29,20 @@ def test_simulate_list_reconcile(tmp_path, capsys):
     record = json.loads(capsys.readouterr().out)[0]
     assert record["state"] == "complete"
     assert record["outcome"] == "simulation_only"
+    assert record["evidence_required"] is True
+    assert record["evidence_seal"]["complete"] is True
     assert main([*base, "list"]) == 0
     assert json.loads(capsys.readouterr().out)[0]["id"] == record["id"]
     assert main([*base, "reconcile"]) == 0
+    assert json.loads(capsys.readouterr().out) == []
+
+
+def test_list_does_not_open_watchdog(tmp_path, capsys, monkeypatch):
+    def unexpected(*_args):
+        raise AssertionError("Listing must not reopen or revoke watchdog leases")
+
+    monkeypatch.setattr("containment.cli.supervised_controller", unexpected)
+    assert main(["--state-dir", str(tmp_path), "list"]) == 0
     assert json.loads(capsys.readouterr().out) == []
 
 

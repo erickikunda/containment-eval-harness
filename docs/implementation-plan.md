@@ -13,6 +13,7 @@ of a developer test or CLI smoke test.
 | 3b | Live private AWS foundation, workload identity, infrastructure and runtime verification | Connectivity/identity tests demonstrate required isolation; fresh worker-bound evidence; independent shutdown | Read-only metadata inspection implemented; infrastructure and live isolation verification pending selected topology |
 | 3c | Local watchdog lease core and durable stop recovery | Nonextendable hard deadline; revoked leases cannot revive; restart stops; unknown termination remains quarantined | Implemented as a library with simulated failure tests; deployment and independent shutdown pending |
 | 3d | Local evidence health and watchdog bridge | Collector faults, gaps and write failures revoke; only healthy bound collections permit renewal; recovery cannot revive leases | Implemented as a library with local integration tests; deployed transport/scheduling and controller lifecycle integration pending |
+| 3e | Supervised fake controller with COLLECTING/SEALED recovery | Confirm stop, retain and verify seal before cleanup; interrupted workloads never replay; uncertain finalization quarantines | Implemented in simulate/reconcile with legacy journal compatibility; production enforcement pending |
 | 4 | Fargate application backend and external controller | Application scenarios only; unknown termination stays unresolved; VM scenarios rejected | Planned |
 | 5 | EC2 VM backend, guest transport, watchdog and infrastructure termination | Actual VM isolation, deadline, outage, stop verification and reset tests pass on dedicated workers | Planned |
 | 6 | Replay/local/private inference interfaces, budgets, agent runner | Atomic reservations, expiry, output bounds, ambiguous timeout handling, no host command execution | Planned |
@@ -42,11 +43,11 @@ storage or protection against a database owner rewriting history before a seal i
 
 Five deterministic fixtures exercise positive, negative, leaked, unsupported claim, and missing
 telemetry cases. They simulate observer assertions, never perform an actual unauthorized read.
-The existing simulation lifecycle is unchanged; the evidence CLI is a separate fixture path.
+The evidence-fixture CLI remains separate from the supervised simulation lifecycle.
 Slice 3d connects local collector health and ingestion failures to watchdog renewal/revocation.
-Before real execution, integrate that bridge into the deployed controller, introduce
-COLLECTING/SEALED lifecycle states with restart recovery, and deploy the collector outside the
-experiment compromise domain. Network authentication, binary artifact ingestion, rate limiting,
+Slice 3e adds COLLECTING/SEALED recovery to CLI simulations and retains seals in the controller
+journal. Before real execution, deploy the integrated controller and collector in separate
+compromise domains with protected external seal retention. Network authentication, binary artifact ingestion, rate limiting,
 and independent seal retention are still deployment/integration work. See evidence-protocol.md.
 
 ## Future deployment layout

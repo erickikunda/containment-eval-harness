@@ -2,7 +2,8 @@
 
 `containment.watchdog` implements a local, synchronous lease and stop-recovery state machine.
 It is a preparatory slice for the independent watchdog described in the system design. It is
-not deployed, integrated into the simulation controller, or connected to AWS. No real execution
+not deployed as an independent service or connected to AWS. The supervised simulation controller
+uses this core locally. No real execution
 gate has changed. Its tests use a fake clock and recording adapters without starting workloads.
 
 ## Lease contract

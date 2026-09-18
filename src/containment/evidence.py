@@ -120,6 +120,12 @@ class Collector:
     def close(self) -> None:
         self.db.close()
 
+    def has_collection(self, trial_id: UUID) -> bool:
+        return (
+            self.db.execute("SELECT 1 FROM collections WHERE id = ?", (str(trial_id),)).fetchone()
+            is not None
+        )
+
     def health(self, trial_id: UUID) -> CollectionHealth:
         """Trusted live snapshot; validates receipts without sealing or exporting producer text.
 

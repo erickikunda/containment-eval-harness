@@ -86,6 +86,8 @@ class State(StrEnum):
     VERIFYING = "verifying"
     RUNNING = "running"
     STOPPING = "stopping"
+    COLLECTING = "collecting"
+    SEALED = "sealed"
     CLEANING = "cleaning"
     COMPLETE = "complete"
     QUARANTINED = "quarantined"

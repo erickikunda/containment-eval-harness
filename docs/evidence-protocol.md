@@ -100,9 +100,10 @@ library integration with simulated stop adapters, not deployed controller enforc
 
 - Real VM/application observers and target-specific evidence schemas.
 - Authenticated network transport, rate limits, and service deployment.
-- Controller COLLECTING/SEALED recovery and deployed independent watchdog linkage.
+- Production controller recovery and deployed independent watchdog linkage; the fake controller
+  implements local COLLECTING/SEALED recovery.
 - Binary artifacts, hostile-format inspection, retention policies, and protected external storage.
 - Independently retained seals and stronger attestation where the threat model requires it.
 
-The local fake lifecycle remains unchanged so evidence fixtures cannot accidentally grant a real
-execution backend new authority.
+The [supervised fake lifecycle](supervised-lifecycle.md) retains and verifies evidence before
+cleanup. Evidence fixtures remain separate, and neither path grants real execution authority.

@@ -4,7 +4,7 @@ Python orchestration for controlled agent containment experiments on private AWS
 The intended deployments are EC2-backed EKS, Fargate application evaluations, and a Fargate
 controller with dedicated EC2 experiment workers. Deployment and inference are separate choices.
 
-**Current status: slices 1–2, AWS preparation slice 3a, and read-only metadata inspection.**
+**Current status: supervised local simulation, AWS preparation, and read-only inspection.**
 Local simulation, evidence fixtures, deployment planning, offline asset preflight, and optional
 AWS metadata inspection are available. Agent execution, experiment
 containers/VMs, AWS provisioning, live network enforcement, model calls, independent watchdogs,
@@ -15,7 +15,8 @@ A local watchdog lease core also provides hard/health deadlines, persistent revo
 stop recovery for future supervisors. It is tested with simulated failures; no independent
 watchdog service or real stop adapter is deployed.
 The local evidence supervisor now gates lease renewal on collection health and routes ingestion
-faults to stop processing; production transport and controller integration remain pending.
+faults to stop processing. New CLI simulations integrate these components and retain evidence
+seals before cleanup; production transport and live controller integration remain pending.
 
 ## Quick start
 
@@ -36,7 +37,8 @@ uv run ruff check .
 Commands use `.harness/` for local state; select another directory with the global
 `--state-dir PATH` option (before the subcommand). `validate` performs static admission only and
 does not create state. `simulate` accepts only the fake deployment with replay inference.
-`reconcile` terminates and cleans up interrupted simulations without replaying their workload.
+`reconcile` stops interrupted simulations without replaying their workload. New trials require
+verified, retained evidence seals before cleanup; recovered evidence can be incomplete.
 Commands that mutate local state take a nonblocking process lock. Only one local controller may
 mutate a given state directory at a time. SQLite and filesystem state must reside on a local disk.
 
@@ -52,8 +54,8 @@ code 0 even for expected negative/invalid verdicts; execution errors return 2.
 
 The collector persists authenticated source identities, bounded events, hash-linked receipts,
 and sealed manifests in `.harness/evidence.sqlite3`. It is a library, not a deployed network
-service. Binary artifact ingestion, TLS identities, external storage, and collector-to-watchdog
-integration remain future work. [Evidence protocol and limits](docs/evidence-protocol.md).
+service. Binary artifact ingestion, TLS identities, protected external storage, and deployed
+collector-to-watchdog integration remain future work. [Evidence protocol and limits](docs/evidence-protocol.md).
 
 ## Design and progress
 
@@ -64,6 +66,7 @@ integration remain future work. [Evidence protocol and limits](docs/evidence-pro
 - [Read-only AWS inspection and IAM policy](docs/aws-inspection.md)
 - [Watchdog lease core and integration gates](docs/watchdog.md)
 - [Evidence health and watchdog integration](docs/evidence-supervision.md)
+- [Supervised simulation lifecycle and recovery](docs/supervised-lifecycle.md)
 - [Scenario example](examples/simulation.json)
 
 Dependencies are locked in `uv.lock`. Building and dependency installation may use the internet;

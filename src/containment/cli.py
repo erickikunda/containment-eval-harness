@@ -14,10 +14,11 @@ from containment.deployment import (
     deployment_plan,
 )
 from containment.fixtures import run_fixture
-from containment.lifecycle import SimulationController, controller_lock
+from containment.lifecycle import controller_lock
 from containment.models import Outcome, Scenario, State
 from containment.preflight import preflight
 from containment.store import Store
+from containment.supervised_lifecycle import supervised_controller
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -110,16 +111,19 @@ def main(argv: list[str] | None = None) -> int:
                 return 0
             store = Store(args.state_dir / "trials.sqlite3")
             try:
-                controller = SimulationController(store, FakeBackend(args.state_dir / "resources"))
-                if args.command == "simulate":
-                    assert scenario is not None
-                    ids = [controller.run(scenario, development_policy())]
-                elif args.command == "reconcile":
-                    ids = controller.reconcile()
-                else:
+                if args.command == "list":
                     from uuid import UUID
 
                     ids = [UUID(row["id"]) for row in store.records()]
+                else:
+                    with supervised_controller(
+                        store, FakeBackend(args.state_dir / "resources"), args.state_dir
+                    ) as controller:
+                        if args.command == "simulate":
+                            assert scenario is not None
+                            ids = [controller.run(scenario, development_policy())]
+                        else:
+                            ids = controller.reconcile()
                 summaries = [store.summary(trial_id) for trial_id in ids]
                 print(json.dumps(summaries, indent=2))
                 return (

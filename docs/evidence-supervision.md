@@ -2,8 +2,8 @@
 
 `EvidenceSupervisor` connects the local collector to the watchdog lease core. The trusted
 controller routes evidence ingestion and lease heartbeats through this object. It adds no
-execution authority, network service, scheduler, or AWS calls. The existing simulation CLI
-remains unchanged; tests exercise real local collector/watchdog journals with simulated stops.
+execution authority, network service, scheduler, or AWS calls. The [supervised simulation CLI](supervised-lifecycle.md) now integrates this bridge; tests exercise
+real local collector/watchdog journals with simulated stops.
 
 ## Health checks before renewal
 
@@ -80,7 +80,7 @@ The supervisor checks only the trial named in a call; watchdog `tick()` also pro
 and pending stops for its other records. A future scheduler must check every active trial at a
 bounded cadence. Calls are synchronous: a blocked collector or provider call can stall this
 process. Independently scheduled watchdog ticks, authenticated remote transport, provider call
-bounds, observer freshness policy, COLLECTING/SEALED lifecycle recovery, and live isolation and
+bounds, observer freshness policy, production lifecycle recovery, and live isolation and
 termination tests remain deployment gates.
 
 Run the local integration tests with:
