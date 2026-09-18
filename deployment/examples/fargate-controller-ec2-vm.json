@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "deployment_id": "harness-dev",
+  "profile": "fargate_controller_ec2_vm",
+  "account_id": "111122223333",
+  "region": "us-east-1",
+  "experiment_namespace": "containment-preflight",
+  "control_namespace": "containment-control",
+  "image": "111122223333.dkr.ecr.us-east-1.amazonaws.com/containment-preflight@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "security_group_ids": ["sg-0123456789abcdef0"],
+  "nodegroup": "containment-workers",
+  "inference": "replay"
+}

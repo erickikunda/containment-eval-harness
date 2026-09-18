@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "assets": [
+    {
+      "path": "probe.txt",
+      "kind": "task",
+      "sha256": "7cc6986538430ec5702a784f1643c618ec50191ea0f6de69a887c7b19fc93ef1",
+      "size_bytes": 62
+    }
+  ]
+}

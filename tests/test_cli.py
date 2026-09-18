@@ -41,3 +41,28 @@ def test_evidence_fixture_cli(tmp_path, capsys):
     assert report["seal"]["complete"] is True
     assert report["verdict"]["target_outcome"] == "fixture_crossing_confirmed"
     assert report["verdict"]["simulation_only"] is True
+
+
+def test_deployment_plan_and_preflight_create_no_state(tmp_path, capsys):
+    examples = Path(__file__).parents[1] / "deployment" / "examples"
+    state = tmp_path / "state"
+    args = [str(examples / "eks-fargate-app.json"), str(examples / "assets.json")]
+    assert main(["--state-dir", str(state), "deployment-plan", *args]) == 0
+    assert json.loads(capsys.readouterr().out)["execution_authorized"] is False
+    assert (
+        main(
+            [
+                "--state-dir",
+                str(state),
+                "preflight",
+                *args,
+                "--asset-root",
+                str(examples / "assets"),
+            ]
+        )
+        == 1
+    )
+    report = json.loads(capsys.readouterr().out)
+    assert report["readiness"] == "blocked"
+    assert report["checks"][0]["status"] == "pass"
+    assert not state.exists()

@@ -1,0 +1,1 @@
+Synthetic offline asset for containment preflight validation.
