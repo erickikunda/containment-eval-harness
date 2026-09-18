@@ -9,6 +9,8 @@ from containment.backend import FakeBackend
 from containment.evidence import Collector, Grant, Limits, ProducerEvent
 from containment.lifecycle import SimulationController
 from containment.models import Deployment, Manifest, Outcome, SafetyPolicy, Scenario, State
+from containment.replay import ReplayScript, run_replay
+from containment.replay_journal import BudgetExceeded
 from containment.store import Store
 from containment.supervision import EvidenceSupervisor
 from containment.watchdog import ResourceBinding, Watchdog
@@ -63,16 +65,25 @@ class SupervisedSimulationController(SimulationController):
         self.adapter = SimulationStopAdapter(store, backend)
         self.supervisor = EvidenceSupervisor(collector, watchdog)
 
-    def run(self, scenario: Scenario, policy: SafetyPolicy) -> UUID:
+    def run(
+        self, scenario: Scenario, policy: SafetyPolicy, replay: ReplayScript | None = None
+    ) -> UUID:
         manifest = resolve(scenario, policy)
         if scenario.deployment != Deployment.FAKE:
             raise ValueError("Real execution backends are not implemented")
+        if replay is not None:
+            replay = ReplayScript.model_validate_json(replay.model_dump_json())
         # Finish old work before creating a new marker. Never replay an interrupted workload.
         self.reconcile()
         trial_id = uuid4()
         self.store.create(trial_id, manifest, evidence_required=True)
         grants = ()
+        end_sequences = (2, 2)
         try:
+            if replay is not None:
+                self.store.replay.register(
+                    trial_id, replay.digest(), scenario.budget, replay.total_output_bytes
+                )
             grants = self.collector.create(
                 trial_id,
                 manifest_digest(manifest),
@@ -91,27 +102,73 @@ class SupervisedSimulationController(SimulationController):
                 raise RuntimeError("Simulation lease unavailable")
             self.store.transition(trial_id, State.RUNNING)
             self.backend.run(trial_id)
-            for grant in grants:
-                raw = (
-                    ProducerEvent(sequence=1, kind="note", text="Simulation marker only")
-                    .model_dump_json()
-                    .encode()
-                )
-                self.supervisor.ingest(trial_id, grant.token, raw)
-            if self.supervisor.heartbeat(trial_id, token, sequence=2)["state"] != "active":
-                raise RuntimeError("Simulation lease revoked")
+            if replay is None:
+                for grant in grants:
+                    raw = (
+                        ProducerEvent(sequence=1, kind="note", text="Simulation marker only")
+                        .model_dump_json()
+                        .encode()
+                    )
+                    self.supervisor.ingest(trial_id, grant.token, raw)
+                if self.supervisor.heartbeat(trial_id, token, sequence=2)["state"] != "active":
+                    raise RuntimeError("Simulation lease revoked")
+            else:
+                end_sequences = self._replay(trial_id, replay, grants, token)
             self.store.set_outcome(trial_id, Outcome.SIMULATED)
         except Exception as exc:
+            self.store.replay.abort(trial_id, state="failed")
             self.store.set_outcome(trial_id, Outcome.ERROR, f"simulation: {type(exc).__name__}")
-        self._finish(trial_id, grants)
+            if replay is not None:
+                # Preserve an earlier evidence/clock fault if it already revoked the lease.
+                try:
+                    self.watchdog.status(trial_id)
+                except KeyError:
+                    pass
+                else:
+                    reason = (
+                        "budget_exhausted" if isinstance(exc, BudgetExceeded) else "health_failure"
+                    )
+                    self.watchdog.revoke(trial_id, reason=reason)
+        self._finish(trial_id, grants, end_sequences)
         return trial_id
 
-    def _finish(self, trial_id: UUID, grants: tuple[Grant, ...] = ()) -> None:
+    def _replay(self, trial_id, script, grants, token):
+        import json
+
+        evidence_sequence, heartbeat_sequence = 1, 2
+
+        def emit(event):
+            nonlocal evidence_sequence
+            raw = (
+                ProducerEvent(
+                    sequence=evidence_sequence, kind="note", text=json.dumps(event, sort_keys=True)
+                )
+                .model_dump_json()
+                .encode()
+            )
+            self.supervisor.ingest(trial_id, grants[0].token, raw)
+            evidence_sequence += 1
+
+        def checkpoint():
+            nonlocal heartbeat_sequence
+            report = self.supervisor.heartbeat(trial_id, token, sequence=heartbeat_sequence)
+            heartbeat_sequence += 1
+            if report["state"] != "active":
+                raise RuntimeError("Replay lease revoked")
+
+        result = run_replay(trial_id, script, self.store.replay, checkpoint, emit)
+        raw = ProducerEvent(sequence=1, kind="note", text=result).model_dump_json().encode()
+        self.supervisor.ingest(trial_id, grants[1].token, raw)
+        checkpoint()
+        return evidence_sequence, 2
+
+    def _finish(self, trial_id: UUID, grants: tuple[Grant, ...] = (), end_sequences=(2, 2)) -> None:
         if not self.store.evidence_required(trial_id):
             return super()._finish(trial_id)
         initial = State(self.store.get(trial_id)["state"])
         if initial in {State.COMPLETE, State.QUARANTINED}:
             return
+        self.store.replay.abort(trial_id)
         if initial not in {State.STOPPING, State.COLLECTING, State.SEALED, State.CLEANING}:
             self.store.transition(trial_id, State.STOPPING)
         try:
@@ -146,8 +203,10 @@ class SupervisedSimulationController(SimulationController):
                     # The trial journal committed before collector setup; no workload was prepared.
                     self.collector.create(trial_id, binding.manifest_digest, ("observer", "guest"))
                 if grants and self.store.get(trial_id)["outcome"] == Outcome.SIMULATED:
-                    for grant in grants:
-                        raw = ProducerEvent(sequence=2, kind="end").model_dump_json().encode()
+                    for grant, sequence in zip(grants, end_sequences, strict=True):
+                        raw = (
+                            ProducerEvent(sequence=sequence, kind="end").model_dump_json().encode()
+                        )
                         self.supervisor.ingest(trial_id, grant.token, raw)
                 health = self.collector.health(trial_id)
                 if health.manifest_digest != binding.manifest_digest:

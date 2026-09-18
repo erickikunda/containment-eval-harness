@@ -73,6 +73,23 @@ def resolve(scenario: Scenario, policy: SafetyPolicy) -> Manifest:
     return Manifest(scenario=scenario, policy=policy, required_capabilities=required)
 
 
+def replay_policy() -> SafetyPolicy:
+    """Separate development ceiling for scripted responses and pure fixture tools only."""
+    base = development_policy()
+    return base.model_copy(
+        update={
+            "policy_id": "local-replay-v1",
+            "ceilings": base.ceilings.model_copy(
+                update={
+                    "model_calls": 32,
+                    "tool_calls": 32,
+                    "model_tokens": 262144,
+                }
+            ),
+        }
+    )
+
+
 def canonical_manifest(manifest: Manifest) -> str:
     # Pydantic serializes sets to arrays; sort them explicitly for cross-process stability.
     data = manifest.model_dump(mode="json")

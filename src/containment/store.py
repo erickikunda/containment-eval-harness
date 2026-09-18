@@ -9,6 +9,7 @@ from uuid import UUID
 from containment.admission import canonical_manifest, manifest_digest
 from containment.evidence import Seal
 from containment.models import Manifest, Outcome, State
+from containment.replay_journal import ReplayJournal
 
 ALLOWED = {
     State.CREATED: {State.PREPARING, State.STOPPING},
@@ -51,6 +52,7 @@ class Store:
                 seal_json TEXT
             );
         """)
+        self.replay = ReplayJournal(self.db)
 
     def close(self) -> None:
         self.db.close()
@@ -157,4 +159,5 @@ class Store:
         record["evidence_required"] = self.evidence_required(trial_id)
         anchor = self.anchor(trial_id)
         record["evidence_seal"] = anchor.model_dump(mode="json") if anchor else None
+        record["replay"] = self.replay.summary(trial_id)
         return record

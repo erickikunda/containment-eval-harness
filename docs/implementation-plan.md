@@ -17,7 +17,8 @@ of a developer test or CLI smoke test.
 | 3f | Local Docker simulation/recovery lab | Installed image runs offline/non-root; volume persists across containers; SIGKILL recovery preserves evidence without replay | Implemented as a local and CI integration check; no real agent or AWS execution |
 | 4 | Fargate application backend and external controller | Application scenarios only; unknown termination stays unresolved; VM scenarios rejected | Planned |
 | 5 | EC2 VM backend, guest transport, watchdog and infrastructure termination | Actual VM isolation, deadline, outage, stop verification and reset tests pass on dedicated workers | Planned |
-| 6 | Replay/local/private inference interfaces, budgets, agent runner | Atomic reservations, expiry, output bounds, ambiguous timeout handling, no host command execution | Planned |
+| 6a | Bounded scripted replay/tool runner with durable budgets | Reserve before actions; output/call/unit limits; evidence/lease checks; interrupted actions never retry | Implemented locally and in Docker; replay units are UTF-8 bytes, not provider tokens |
+| 6b | Local/private inference adapters and live agent runner | Bounded transport, tokenizer/cost accounting, authenticated scope, ambiguous timeout handling, isolated tool execution | Planned |
 | 7 | Scenario suite and reports | Directed/ordinary/validation tracks separate; repeated results include validity and evidence | Planned |
 | 8 | Multiple workers and trials | Cross-trial isolation, orphan discovery and concurrency failure campaign pass | Planned |
 

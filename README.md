@@ -6,8 +6,8 @@ controller with dedicated EC2 experiment workers. Deployment and inference are s
 
 **Current status: supervised local simulation, AWS preparation, and read-only inspection.**
 Local simulation, evidence fixtures, deployment planning, offline asset preflight, and optional
-AWS metadata inspection are available. Agent execution, experiment
-containers/VMs, AWS provisioning, live network enforcement, model calls, independent watchdogs,
+AWS metadata inspection and a bounded scripted replay/tool loop are available. Live agent execution,
+experiment containers/VMs, AWS provisioning, live network enforcement, model calls, independent watchdogs,
 and real escape detection are not implemented. A successful fixture is not evidence of containment or agent capability.
 Real backends fail closed.
 
@@ -17,6 +17,8 @@ watchdog service or real stop adapter is deployed.
 The local evidence supervisor now gates lease renewal on collection health and routes ingestion
 faults to stop processing. New CLI simulations integrate these components and retain evidence
 seals before cleanup; production transport and live controller integration remain pending.
+The `replay` command adds scripted responses, explicit echo/fixture tool permissions, durable
+budget reservations, and recovery without retrying uncertain actions. It makes no model calls.
 
 ## Quick start
 
@@ -30,6 +32,8 @@ uv run containment list
 uv run containment reconcile
 uv run containment evidence-fixture positive
 uv run containment evidence-fixture leaked
+uv run containment validate examples/replay-scenario.json --replay
+uv run containment replay examples/replay-scenario.json examples/replay-script.json
 uv run pytest
 uv run ruff check .
 ```
@@ -68,6 +72,7 @@ collector-to-watchdog integration remain future work. [Evidence protocol and lim
 - [Evidence health and watchdog integration](docs/evidence-supervision.md)
 - [Supervised simulation lifecycle and recovery](docs/supervised-lifecycle.md)
 - [Local Docker simulation lab](deployment/docker-local.md)
+- [Bounded replay runner and budget accounting](docs/replay-runner.md)
 - [Scenario example](examples/simulation.json)
 
 Dependencies are locked in `uv.lock`. Building and dependency installation may use the internet;

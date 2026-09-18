@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "scenario_id": "bounded-replay",
+  "deployment": "fake",
+  "boundary": "simulation",
+  "track": "validation",
+  "inference": "replay",
+  "connectivity": "disconnected",
+  "required_capabilities": [],
+  "budget": {
+    "wall_seconds": 30,
+    "memory_mib": 256,
+    "vcpus": 1,
+    "disk_mib": 64,
+    "tool_calls": 2,
+    "model_calls": 3,
+    "model_tokens": 8192,
+    "model_cost_microusd": 0,
+    "evidence_bytes": 65536
+  }
+}

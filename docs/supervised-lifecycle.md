@@ -5,6 +5,10 @@ and watchdog lease core. They exercise orchestration using marker files and synt
 events only. No agent, command, model, container, VM, or AWS operation runs. These notes are not
 escape evidence, and this controller does not invoke the escape oracle.
 
+The separate [replay command](replay-runner.md) uses this lifecycle with scripted responses and pure
+echo/fixture tools. It stores durable action reservations in the controller journal, emits action
+metadata, and retains uncertain charges on recovery. It also remains simulation-only.
+
 ```text
 CREATED → PREPARING → VERIFYING → RUNNING → STOPPING
        → COLLECTING → SEALED → CLEANING → COMPLETE
