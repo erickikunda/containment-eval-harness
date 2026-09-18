@@ -57,3 +57,18 @@ integration remain future work. [Evidence protocol and limits](docs/evidence-pro
 Dependencies are locked in `uv.lock`. Building and dependency installation may use the internet;
 the simulation runtime does not need it. Offline AWS deployments will use prebuilt, pinned images
 and prepositioned assets, not runtime package installation.
+
+## Continuous integration
+
+[GitHub Actions](.github/workflows/ci.yml) runs on pull requests and pushes to `main`, with an
+optional manual trigger. It checks Ruff lint/formatting, runs tests on Linux with Python 3.12,
+3.13, and 3.14, builds the package, and smoke-tests the installed wheel in a clean environment
+outside the source checkout. Runtime dependencies come from `uv.lock`; build-system dependencies
+still follow the constraints in `pyproject.toml`.
+
+The workflow uses commit-pinned actions, a fixed uv version, read-only repository permissions,
+and no AWS credentials. It exercises local simulations and fixtures only. These hosted runners
+use internet access to install tools and dependencies; they do not verify offline AWS containment.
+The aggregate check named **CI** succeeds only when every quality and matrix job passes. It can
+be selected as a required check in repository rules; adding this workflow does not itself enforce
+branch protection.

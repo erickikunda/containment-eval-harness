@@ -8,6 +8,7 @@ of a developer test or CLI smoke test.
 | --- | --- | --- | --- |
 | 1 | Strict schemas, static capability admission, immutable manifests, SQLite lifecycle, persistent fake resources, simulation CLI, restart recovery | Invalid/incompatible input fails before resource creation; failed stop/cleanup quarantines; interrupted simulations reconcile | Implemented; see tests |
 | 2 | Evidence envelopes, collector receipts, bounded event ingestion, sealing, deterministic fixture oracle | Spoofed source rejected; missing telemetry explicit; fixture controls distinguish leaked canary and corroborated synthetic access | Implemented locally; no real escape claims |
+| 2a | Pull-request CI for the existing local foundation | Linux tests on Python 3.12–3.14, Ruff checks, package build, installed-wheel smoke test | Implemented in `.github/workflows/ci.yml` |
 | 3 | Private AWS deployment foundation, workload identity, prepositioned images, runtime probes | Connectivity and identity tests demonstrate required isolation; no runtime public downloads | Planned |
 | 4 | Fargate application backend and external controller | Application scenarios only; unknown termination stays unresolved; VM scenarios rejected | Planned |
 | 5 | EC2 VM backend, guest transport, watchdog and infrastructure termination | Actual VM isolation, deadline, outage, stop verification and reset tests pass on dedicated workers | Planned |

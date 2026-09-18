@@ -1,0 +1,89 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Quality
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up uv and Python
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          version: "0.11.16"
+          python-version: "3.12"
+          enable-cache: false
+      - name: Install locked dependencies
+        run: uv sync --locked --extra dev
+      - name: Lint
+        run: uv run --no-sync ruff check .
+      - name: Check formatting
+        run: uv run --no-sync ruff format --check .
+
+  tests:
+    name: Python ${{ matrix.python-version }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.12", "3.13", "3.14"]
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up uv and Python
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          version: "0.11.16"
+          python-version: ${{ matrix.python-version }}
+          enable-cache: false
+      - name: Install locked dependencies
+        run: uv sync --locked --extra dev
+      - name: Run local simulation and evidence tests
+        run: uv run --no-sync pytest -q
+      - name: Build source and wheel distributions
+        run: uv build
+      - name: Install wheel in a clean runtime environment
+        run: |
+          uv venv .harness/wheel-smoke
+          uv export --locked --no-dev --no-emit-project --format requirements-txt --output-file .harness/runtime-requirements.txt
+          uv pip sync --python .harness/wheel-smoke/bin/python .harness/runtime-requirements.txt
+          uv pip install --no-deps --python .harness/wheel-smoke/bin/python dist/*.whl
+      - name: Smoke test installed entry point outside the checkout
+        working-directory: ${{ runner.temp }}
+        run: |
+          "$GITHUB_WORKSPACE/.harness/wheel-smoke/bin/containment" validate "$GITHUB_WORKSPACE/examples/simulation.json"
+          "$GITHUB_WORKSPACE/.harness/wheel-smoke/bin/containment" --state-dir "$RUNNER_TEMP/fixture-state" evidence-fixture positive
+
+  ci:
+    name: CI
+    if: ${{ always() }}
+    needs: [quality, tests]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - name: Require all checks to succeed
+        env:
+          QUALITY_RESULT: ${{ needs.quality.result }}
+          TEST_RESULT: ${{ needs.tests.result }}
+        run: |
+          test "$QUALITY_RESULT" = success
+          test "$TEST_RESULT" = success
