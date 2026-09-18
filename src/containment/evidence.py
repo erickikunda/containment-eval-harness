@@ -70,6 +70,17 @@ class VerifiedEvidence:
     receipts: tuple[dict, ...]
 
 
+class CollectionHealth(StrictModel):
+    trial_id: UUID
+    manifest_digest: str
+    collection_fault: bool
+    has_gap: bool
+    sealed: bool
+    source_count: int
+    observer_count: int
+    ended_sources: int
+
+
 class EvidenceError(ValueError):
     pass
 
@@ -108,6 +119,31 @@ class Collector:
 
     def close(self) -> None:
         self.db.close()
+
+    def health(self, trial_id: UUID) -> CollectionHealth:
+        """Trusted live snapshot; validates receipts without sealing or exporting producer text.
+
+        This checks local collection consistency, not observer liveness or independent integrity.
+        """
+        with self._transaction():
+            collection = self._collection(trial_id)
+            snapshot, receipts = self._snapshot(trial_id, datetime.now(UTC).isoformat())
+            roles = [
+                row["role"]
+                for row in self.db.execute(
+                    "SELECT role FROM sources WHERE trial_id = ?", (str(trial_id),)
+                )
+            ]
+            return CollectionHealth(
+                trial_id=trial_id,
+                manifest_digest=snapshot.manifest_digest,
+                collection_fault=snapshot.collection_fault,
+                has_gap=any(receipt["missing_before"] > 0 for receipt in receipts),
+                sealed=collection["seal_json"] is not None,
+                source_count=len(roles),
+                observer_count=roles.count("observer"),
+                ended_sources=sum(receipt["event"]["kind"] == "end" for receipt in receipts),
+            )
 
     @contextmanager
     def _transaction(self):

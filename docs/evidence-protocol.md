@@ -92,11 +92,15 @@ A complete valid negative fixture reports `no_crossing_observed`, never 'safe'. 
 order is the fixture protocol's order; production observers must address transport delay and causal
 correlation rather than interpreting arrival order as universal real-world event order.
 
-## Deferred integration
+## Local supervision and deferred integration
+
+The [evidence supervisor](evidence-supervision.md) now checks collection health before watchdog
+renewal and routes ingestion faults/gaps to revocation and stop processing. This is a local
+library integration with simulated stop adapters, not deployed controller enforcement.
 
 - Real VM/application observers and target-specific evidence schemas.
 - Authenticated network transport, rate limits, and service deployment.
-- Controller COLLECTING/SEALED recovery and independent watchdog linkage.
+- Controller COLLECTING/SEALED recovery and deployed independent watchdog linkage.
 - Binary artifacts, hostile-format inspection, retention policies, and protected external storage.
 - Independently retained seals and stronger attestation where the threat model requires it.
 

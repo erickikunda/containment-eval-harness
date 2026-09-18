@@ -14,6 +14,8 @@ Real backends fail closed.
 A local watchdog lease core also provides hard/health deadlines, persistent revocation, and
 stop recovery for future supervisors. It is tested with simulated failures; no independent
 watchdog service or real stop adapter is deployed.
+The local evidence supervisor now gates lease renewal on collection health and routes ingestion
+faults to stop processing; production transport and controller integration remain pending.
 
 ## Quick start
 
@@ -61,6 +63,7 @@ integration remain future work. [Evidence protocol and limits](docs/evidence-pro
 - [AWS deployment preparation and offline image](deployment/README.md)
 - [Read-only AWS inspection and IAM policy](docs/aws-inspection.md)
 - [Watchdog lease core and integration gates](docs/watchdog.md)
+- [Evidence health and watchdog integration](docs/evidence-supervision.md)
 - [Scenario example](examples/simulation.json)
 
 Dependencies are locked in `uv.lock`. Building and dependency installation may use the internet;
