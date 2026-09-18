@@ -5,8 +5,14 @@ import sys
 from pathlib import Path
 
 from containment.admission import development_policy, manifest_digest, resolve
+from containment.aws_inspection import AwsSnapshot, InspectionTarget, assess, inspection_policy
 from containment.backend import FakeBackend
-from containment.deployment import AssetManifest, DeploymentConfig, deployment_plan
+from containment.deployment import (
+    AssetManifest,
+    DeploymentConfig,
+    check_assets_for_profile,
+    deployment_plan,
+)
 from containment.fixtures import run_fixture
 from containment.lifecycle import SimulationController, controller_lock
 from containment.models import Outcome, Scenario, State
@@ -33,8 +39,55 @@ def main(argv: list[str] | None = None) -> int:
         command.add_argument("assets", type=Path)
         if name == "preflight":
             command.add_argument("--asset-root", type=Path, required=True)
+    inspection = commands.add_parser("aws-inspect")
+    inspection.add_argument("config", type=Path)
+    inspection.add_argument("assets", type=Path)
+    inspection.add_argument("target", type=Path)
+    mode = inspection.add_mutually_exclusive_group(required=True)
+    mode.add_argument("--snapshot", type=Path)
+    mode.add_argument("--live", action="store_true")
+    inspection.add_argument("--aws-profile")
+    inspection.add_argument("--save-snapshot", type=Path)
+    policy_command = commands.add_parser("aws-inspection-policy")
+    policy_command.add_argument("config", type=Path)
+    policy_command.add_argument("target", type=Path)
     args = parser.parse_args(argv)
     try:
+        if args.command == "aws-inspection-policy":
+            config = DeploymentConfig.model_validate_json(args.config.read_text())
+            target = InspectionTarget.model_validate_json(args.target.read_text())
+            print(json.dumps(inspection_policy(config, target), indent=2))
+            return 0
+        if args.command == "aws-inspect":
+            config = DeploymentConfig.model_validate_json(args.config.read_text())
+            assets = AssetManifest.model_validate_json(args.assets.read_text())
+            target = InspectionTarget.model_validate_json(args.target.read_text())
+            check_assets_for_profile(config, assets)
+            if args.snapshot:
+                if args.aws_profile or args.save_snapshot:
+                    raise ValueError("--aws-profile and --save-snapshot are only valid with --live")
+                with args.snapshot.open("rb") as stream:
+                    raw = stream.read(8 * 1024 * 1024 + 1)
+                if len(raw) > 8 * 1024 * 1024:
+                    raise ValueError("Snapshot exceeds 8 MiB")
+                snapshot = AwsSnapshot.model_validate_json(raw)
+            else:
+                try:
+                    from containment.aws_reader import live_snapshot
+                except ImportError as exc:
+                    raise RuntimeError(
+                        "Live inspection requires installation with the 'aws' extra"
+                    ) from exc
+                snapshot = live_snapshot(config, assets, target, args.aws_profile)
+                if args.save_snapshot:
+                    # Do not overwrite an earlier observation or follow an existing symlink.
+                    with args.save_snapshot.open("x") as stream:
+                        stream.write(snapshot.model_dump_json(indent=2) + "\n")
+            report = assess(
+                config, assets, target, snapshot, source="snapshot" if args.snapshot else "live_aws"
+            )
+            print(json.dumps(report, indent=2))
+            return 1  # Metadata alone never authorizes experiment execution.
         if args.command in {"deployment-plan", "preflight"}:
             config = DeploymentConfig.model_validate_json(args.config.read_text())
             assets = AssetManifest.model_validate_json(args.assets.read_text())

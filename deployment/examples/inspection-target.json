@@ -1,0 +1,6 @@
+{
+  "schema_version": 1,
+  "cluster_name": "containment-dev",
+  "vpc_id": "vpc-0123456789abcdef0",
+  "subnet_ids": ["subnet-0123456789abcdef0"]
+}

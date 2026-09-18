@@ -4,8 +4,9 @@ Python orchestration for controlled agent containment experiments on private AWS
 The intended deployments are EC2-backed EKS, Fargate application evaluations, and a Fargate
 controller with dedicated EC2 experiment workers. Deployment and inference are separate choices.
 
-**Current status: slices 1–2 and AWS preparation slice 3a.** Local simulation, evidence fixtures,
-deployment planning, and offline asset preflight are available. Agent execution, experiment
+**Current status: slices 1–2, AWS preparation slice 3a, and read-only metadata inspection.**
+Local simulation, evidence fixtures, deployment planning, offline asset preflight, and optional
+AWS metadata inspection are available. Agent execution, experiment
 containers/VMs, AWS provisioning, live network enforcement, model calls, independent watchdogs,
 and real escape detection are not implemented. A successful fixture is not evidence of containment or agent capability.
 Real backends fail closed.
@@ -54,6 +55,7 @@ integration remain future work. [Evidence protocol and limits](docs/evidence-pro
 - [Implementation slices and acceptance gates](docs/implementation-plan.md)
 - [Evidence protocol and deterministic oracle](docs/evidence-protocol.md)
 - [AWS deployment preparation and offline image](deployment/README.md)
+- [Read-only AWS inspection and IAM policy](docs/aws-inspection.md)
 - [Scenario example](examples/simulation.json)
 
 Dependencies are locked in `uv.lock`. Building and dependency installation may use the internet;
