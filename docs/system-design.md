@@ -127,8 +127,9 @@ exhaustion, or critical health failure stops a run. Unknown stop status quaranti
 Deleting a Kubernetes object is not proof of termination. EC2 workers need independent instance
 termination authority; Fargate scenarios must fit the termination guarantees available there.
 
-Slice 1 deliberately omits COLLECTING/SEALED because authoritative evidence is not implemented.
-Its SQLite lifecycle journal is local development metadata, not a protected evidence store.
+New CLI simulations implement COLLECTING/SEALED with local evidence retention and verification.
+Legacy trial recovery preserves its original path. These SQLite journals are local development
+metadata, not protected evidence storage or independent containment. See supervised-lifecycle.md.
 
 ## Evidence and oracles
 

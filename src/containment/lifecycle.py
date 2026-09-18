@@ -51,6 +51,8 @@ class SimulationController:
         return trial_id
 
     def _finish(self, trial_id: UUID) -> None:
+        if self.store.evidence_required(trial_id):
+            raise RuntimeError("Evidence-enabled trial requires the supervised controller")
         state = State(self.store.get(trial_id)["state"])
         if state in {State.COMPLETE, State.QUARANTINED}:
             return
