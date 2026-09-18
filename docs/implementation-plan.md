@@ -11,6 +11,7 @@ of a developer test or CLI smoke test.
 | 2a | Pull-request CI for the existing local foundation | Linux tests on Python 3.12–3.14, Ruff checks, package build, installed-wheel smoke test | Implemented in `.github/workflows/ci.yml` |
 | 3a | AWS configuration/rendering, tokenless suspended preflight, offline image and asset checks | Invalid profiles rejected; local checks cannot authorize execution; image runs with no network | Implemented locally; see deployment/README.md |
 | 3b | Live private AWS foundation, workload identity, infrastructure and runtime verification | Connectivity/identity tests demonstrate required isolation; fresh worker-bound evidence; independent shutdown | Read-only metadata inspection implemented; infrastructure and live isolation verification pending selected topology |
+| 3c | Local watchdog lease core and durable stop recovery | Nonextendable hard deadline; revoked leases cannot revive; restart stops; unknown termination remains quarantined | Implemented as a library with simulated failure tests; deployment and independent shutdown pending |
 | 4 | Fargate application backend and external controller | Application scenarios only; unknown termination stays unresolved; VM scenarios rejected | Planned |
 | 5 | EC2 VM backend, guest transport, watchdog and infrastructure termination | Actual VM isolation, deadline, outage, stop verification and reset tests pass on dedicated workers | Planned |
 | 6 | Replay/local/private inference interfaces, budgets, agent runner | Atomic reservations, expiry, output bounds, ambiguous timeout handling, no host command execution | Planned |
@@ -47,6 +48,10 @@ experiment compromise domain. Network authentication, binary artifact ingestion,
 and independent seal retention are still deployment/integration work. See evidence-protocol.md.
 
 ## Future deployment layout
+
+While live topology selection is pending, slice 3c implements the reusable watchdog lease core.
+It does not satisfy the live termination acceptance gate or enable a real backend. See
+[watchdog contract and integration gates](watchdog.md) for timing, persistence, and recovery limits.
 
 ```text
 deployment/base/{controller,evidence-collector,inference-gateway,rbac}.yaml
