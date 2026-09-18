@@ -74,6 +74,9 @@ or real-time termination guarantee from this library alone.
 
 ## Integration gate before real execution
 
+The local [evidence supervisor](evidence-supervision.md) implements evidence checks before renewal
+and revocation on ingestion failures. It does not provide the deployed services below.
+
 The next deployment integration must supply:
 
 - A supervisor outside the experiment worker's compromise domain, with an explicit polling
