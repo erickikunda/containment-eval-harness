@@ -44,6 +44,14 @@ lab_run containment-preflight:check --state-dir /var/lib/containment \
   reconcile > "$lab_report_dir/recovery.json"
 lab_run containment-preflight:check --state-dir /var/lib/containment \
   reconcile > "$lab_report_dir/recovery-again.json"
+lab_run containment-preflight:check --state-dir /var/lib/containment \
+  replay /examples/replay-scenario.json /examples/replay-script.json > "$lab_report_dir/replay.json"
+lab_status=0
+lab_run --entrypoint python containment-preflight:check /probe.py replay-crash \
+  > "$lab_report_dir/replay-crash.json" || lab_status=$?
+test "$lab_status" -eq 137
+lab_run containment-preflight:check --state-dir /var/lib/containment \
+  reconcile > "$lab_report_dir/replay-recovery.json"
 lab_run --entrypoint python containment-preflight:check /probe.py verify \
   > "$lab_report_dir/verification.json"
 
@@ -65,8 +73,14 @@ assert recovered[0]['state'] == 'complete'
 assert recovered[0]['evidence_seal']['complete'] is False
 assert json.loads((root / 'recovery-again.json').read_text()) == []
 verified = json.loads((root / 'verification.json').read_text())
-assert verified['verified_trials'] == 2
+assert verified['verified_trials'] == 4
 assert verified['simulation_only'] is True
-print('Docker simulation and SIGKILL recovery passed; both retained seals verified.')
+replay = json.loads((root / 'replay.json').read_text())[0]
+assert replay['replay']['state'] == 'complete'
+replay_recovery = json.loads((root / 'replay-recovery.json').read_text())
+assert len(replay_recovery) == 1
+assert replay_recovery[0]['id'] == json.loads((root / 'replay-crash.json').read_text())['trial_id']
+assert replay_recovery[0]['replay']['actions'][-1]['state'] == 'uncertain'
+print('Docker simulation/replay SIGKILL recovery passed; four retained seals verified.')
 PY
 lab_passed=true

@@ -9,11 +9,12 @@ import sys
 from pathlib import Path
 from uuid import UUID
 
-from containment.admission import development_policy
+from containment.admission import development_policy, replay_policy
 from containment.backend import FakeBackend
 from containment.evidence import Collector
 from containment.lifecycle import controller_lock
 from containment.models import Outcome, Scenario, State
+from containment.replay import ReplayScript
 from containment.store import Store
 from containment.supervised_lifecycle import supervised_controller
 
@@ -67,7 +68,7 @@ def verify():
         collector = Collector(ROOT / "evidence.sqlite3")
         try:
             rows = store.records()
-            assert len(rows) == 2
+            assert len(rows) == 4
             assert {row["outcome"] for row in rows} == {Outcome.SIMULATED, Outcome.INTERRUPTED}
             for row in rows:
                 trial = UUID(row["id"])
@@ -75,8 +76,19 @@ def verify():
                 anchor = store.anchor(trial)
                 collector.verify(trial, anchor)
                 assert anchor.complete == (row["outcome"] == Outcome.SIMULATED)
-                if row["outcome"] == Outcome.INTERRUPTED:
+                replay = store.replay.summary(trial)
+                if row["outcome"] == Outcome.INTERRUPTED and replay is None:
                     assert anchor.event_count == 0  # Recovery did not replay synthetic events.
+                if replay is not None:
+                    if row["outcome"] == Outcome.INTERRUPTED:
+                        assert replay["state"] == "interrupted"
+                        assert replay["tool_calls"] == 1
+                        assert replay["actions"][-1]["state"] == "uncertain"
+                        assert replay["actions"][-1]["result"] is None
+                        assert replay["actions"][-1]["output_bytes"] == 256
+                    else:
+                        assert replay["state"] == "complete"
+                        assert replay["model_calls"] == 3 and replay["tool_calls"] == 2
                 assert FakeBackend(ROOT / "resources").verify_cleanup(trial)
             print(
                 json.dumps(
@@ -88,11 +100,42 @@ def verify():
             store.close()
 
 
+def replay_crash():
+    import containment.replay as replay_module
+
+    original = replay_module.execute_tool
+    with controller_lock(ROOT / "controller.lock"):
+        store = Store(ROOT / "trials.sqlite3")
+        try:
+
+            def interrupted_tool(call, script):
+                original(call, script)
+                trial = store.records()[-1]["id"]
+                print(json.dumps({"trial_id": trial, "simulation_only": True}), flush=True)
+                os.kill(os.getpid(), signal.SIGKILL)
+                raise AssertionError("SIGKILL did not terminate replay")
+
+            replay_module.execute_tool = interrupted_tool
+            with supervised_controller(store, FakeBackend(ROOT / "resources"), ROOT) as controller:
+                scenario = Scenario.model_validate_json(
+                    Path("/examples/replay-scenario.json").read_text()
+                )
+                script = ReplayScript.model_validate_json(
+                    Path("/examples/replay-script.json").read_text()
+                )
+                controller.run(scenario, replay_policy(), script)
+        finally:
+            replay_module.execute_tool = original
+            store.close()
+
+
 if __name__ == "__main__":
     check_runtime()
     if sys.argv[1:] == ["crash"]:
         crash()
     elif sys.argv[1:] == ["verify"]:
         verify()
+    elif sys.argv[1:] == ["replay-crash"]:
+        replay_crash()
     else:
-        raise SystemExit("Expected crash or verify")
+        raise SystemExit("Expected crash, replay-crash, or verify")

@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "prompt": "Look up the synthetic greeting, echo a short response, then finish.",
+  "allowed_tools": ["lookup", "echo"],
+  "fixtures": {"greeting": "Hello from a synthetic fixture"},
+  "max_response_bytes": 1024,
+  "max_output_bytes": 256,
+  "total_output_bytes": 4096,
+  "responses": [
+    "{\"kind\":\"tool\",\"name\":\"lookup\",\"arguments\":{\"key\":\"greeting\"}}",
+    "{\"kind\":\"tool\",\"name\":\"echo\",\"arguments\":{\"text\":\"Hello from replay\"}}",
+    "{\"kind\":\"finish\",\"text\":\"Replay completed\"}"
+  ]
+}

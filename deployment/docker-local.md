@@ -23,7 +23,9 @@ The script builds the pinned preflight image, runs the existing offline prefligh
    after writing a running marker. The expected container exit code is 137.
 4. Uses a fresh container to reconcile the same volume, without replaying the workload.
 5. Runs reconciliation again and checks that it has no further work.
-6. Verifies both retained evidence seals, resource cleanup, and explicit incomplete evidence for
+6. Runs a bounded replay/tool loop, then crashes a second replay after tool execution but before
+   result settlement and recovers it without retrying the uncertain action.
+7. Verifies all four retained evidence seals, resource cleanup, and explicit incomplete evidence for
    the interrupted trial. The interrupted record must have no replayed synthetic events.
 
 Each container runs as UID/GID 10001 with no network, a read-only root filesystem, all capabilities
@@ -70,6 +72,7 @@ harness_local list
 harness_local reconcile
 harness_local evidence-fixture positive
 harness_local evidence-fixture leaked
+harness_local replay /examples/replay-scenario.json /examples/replay-script.json
 ```
 
 The image prepares the state directory for UID 10001; a new Docker volume inherits that directory's
@@ -85,8 +88,8 @@ There is no supported release-quarantine or resume command. Refer to
 
 ## What this lets us develop next
 
-This lab can support repeatable Linux integration tests, operator demonstrations, additional
-failure injection, and development of replay/inference interfaces before cloud resources exist.
+This lab supports repeatable Linux integration tests, operator demonstrations, additional failure
+injection, and the [bounded replay runner](../docs/replay-runner.md) before cloud resources exist.
 Future local model or service integration needs its own implementation and resource/network design;
 this change does not supply those features.
 
