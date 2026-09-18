@@ -16,6 +16,7 @@ RUN --network=none python -m pip install --no-cache-dir --no-index \
     && python -m pip install --no-cache-dir --no-index --no-deps /wheelhouse/containment_eval_harness-*.whl \
     && rm -rf /wheelhouse /build
 COPY assets/ /opt/containment/assets/
+RUN mkdir -p /var/lib/containment && chown 10001:10001 /var/lib/containment
 USER 10001:10001
 WORKDIR /opt/containment
 ENTRYPOINT ["containment"]
