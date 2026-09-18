@@ -33,3 +33,11 @@ def test_simulate_list_reconcile(tmp_path, capsys):
     assert json.loads(capsys.readouterr().out)[0]["id"] == record["id"]
     assert main([*base, "reconcile"]) == 0
     assert json.loads(capsys.readouterr().out) == []
+
+
+def test_evidence_fixture_cli(tmp_path, capsys):
+    assert main(["--state-dir", str(tmp_path), "evidence-fixture", "positive"]) == 0
+    report = json.loads(capsys.readouterr().out)
+    assert report["seal"]["complete"] is True
+    assert report["verdict"]["target_outcome"] == "fixture_crossing_confirmed"
+    assert report["verdict"]["simulation_only"] is True

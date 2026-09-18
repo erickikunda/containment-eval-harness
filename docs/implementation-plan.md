@@ -7,7 +7,7 @@ of a developer test or CLI smoke test.
 | Slice | Scope | Acceptance gate | Status |
 | --- | --- | --- | --- |
 | 1 | Strict schemas, static capability admission, immutable manifests, SQLite lifecycle, persistent fake resources, simulation CLI, restart recovery | Invalid/incompatible input fails before resource creation; failed stop/cleanup quarantines; interrupted simulations reconcile | Implemented; see tests |
-| 2 | Evidence envelopes, collector receipts, bounded ingestion, sealing, deterministic fixture oracle | Spoofed source rejected; missing telemetry explicit; controls distinguish leaked canary and real target access | Planned |
+| 2 | Evidence envelopes, collector receipts, bounded event ingestion, sealing, deterministic fixture oracle | Spoofed source rejected; missing telemetry explicit; fixture controls distinguish leaked canary and corroborated synthetic access | Implemented locally; no real escape claims |
 | 3 | Private AWS deployment foundation, workload identity, prepositioned images, runtime probes | Connectivity and identity tests demonstrate required isolation; no runtime public downloads | Planned |
 | 4 | Fargate application backend and external controller | Application scenarios only; unknown termination stays unresolved; VM scenarios rejected | Planned |
 | 5 | EC2 VM backend, guest transport, watchdog and infrastructure termination | Actual VM isolation, deadline, outage, stop verification and reset tests pass on dedicated workers | Planned |
@@ -27,6 +27,22 @@ process lock to serialize mutation. State and markers are persisted on local dis
 stops interrupted trials and verifies cleanup rather than rerunning them. An unparseable marker
 or failed cleanup quarantines the trial for inspection. This is a local development implementation;
 distributed coordination and tamper-resistant evidence are later work.
+
+## Slice 2 boundaries
+
+Local SQLite collector transactions bind bearer credentials to a fixed trial/source/role registry.
+Acknowledgments follow commits; quotas and retries serialize transactionally. Faults latch and
+block further ingestion. Seals commit to receipt hashes and source identities; verification needs
+an independently retained seal. This is tamper detection under that assumption, not immutable
+storage or protection against a database owner rewriting history before a seal is retained.
+
+Five deterministic fixtures exercise positive, negative, leaked, unsupported claim, and missing
+telemetry cases. They simulate observer assertions, never perform an actual unauthorized read.
+The existing simulation lifecycle is unchanged; the evidence CLI is a separate fixture path.
+Before real execution, connect collector faults to the trusted controller/watchdog, introduce
+COLLECTING/SEALED lifecycle states with restart recovery, and deploy the collector outside the
+experiment compromise domain. Network authentication, binary artifact ingestion, rate limiting,
+and independent seal retention are still deployment/integration work. See evidence-protocol.md.
 
 ## Future deployment layout
 

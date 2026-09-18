@@ -1,10 +1,12 @@
 import argparse
 import json
+import sqlite3
 import sys
 from pathlib import Path
 
 from containment.admission import development_policy, manifest_digest, resolve
 from containment.backend import FakeBackend
+from containment.fixtures import run_fixture
 from containment.lifecycle import SimulationController, controller_lock
 from containment.models import Outcome, Scenario, State
 from containment.store import Store
@@ -19,6 +21,8 @@ def main(argv: list[str] | None = None) -> int:
         command.add_argument("scenario", type=Path)
     commands.add_parser("list")
     commands.add_parser("reconcile")
+    fixture = commands.add_parser("evidence-fixture")
+    fixture.add_argument("mode", choices=["positive", "negative", "leaked", "claim_only", "gap"])
     args = parser.parse_args(argv)
     try:
         scenario = None
@@ -29,6 +33,10 @@ def main(argv: list[str] | None = None) -> int:
                 print(json.dumps({"admission": "static_only", "digest": manifest_digest(manifest)}))
                 return 0
         with controller_lock(args.state_dir / "controller.lock"):
+            if args.command == "evidence-fixture":
+                report = run_fixture(args.state_dir / "evidence.sqlite3", args.mode)
+                print(json.dumps(report, indent=2))
+                return 0
             store = Store(args.state_dir / "trials.sqlite3")
             try:
                 controller = SimulationController(store, FakeBackend(args.state_dir / "resources"))
@@ -53,7 +61,7 @@ def main(argv: list[str] | None = None) -> int:
                 )
             finally:
                 store.close()
-    except (ValueError, OSError, RuntimeError) as exc:
+    except (ValueError, OSError, RuntimeError, sqlite3.Error) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
 
