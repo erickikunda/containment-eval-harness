@@ -6,8 +6,9 @@ controller with dedicated EC2 experiment workers. Deployment and inference are s
 
 **Current status: supervised local simulation, AWS preparation, and read-only inspection.**
 Local simulation, evidence fixtures, deployment planning, offline asset preflight, and optional
-AWS metadata inspection and a bounded scripted replay/tool loop are available. Live agent execution,
-experiment containers/VMs, AWS provisioning, live network enforcement, model calls, independent watchdogs,
+AWS metadata inspection, bounded scripted replay, and a local llama.cpp model adapter are available.
+The model adapter supports only benign validation with pure fixture tools. Adversarial agent execution,
+experiment containers/VMs, AWS provisioning, live network enforcement, independent watchdogs,
 and real escape detection are not implemented. A successful fixture is not evidence of containment or agent capability.
 Real backends fail closed.
 
@@ -19,6 +20,9 @@ faults to stop processing. New CLI simulations integrate these components and re
 seals before cleanup; production transport and live controller integration remain pending.
 The `replay` command adds scripted responses, explicit echo/fixture tool permissions, durable
 budget reservations, and recovery without retrying uncertain actions. It makes no model calls.
+The separate `local-model` command can contact an operator-provisioned loopback llama.cpp server;
+its automated Docker rehearsal uses a test server with no real inference.
+See [local model setup, accounting, and cancellation limits](docs/local-model.md).
 
 ## Quick start
 
@@ -73,6 +77,7 @@ collector-to-watchdog integration remain future work. [Evidence protocol and lim
 - [Supervised simulation lifecycle and recovery](docs/supervised-lifecycle.md)
 - [Local Docker simulation lab](deployment/docker-local.md)
 - [Bounded replay runner and budget accounting](docs/replay-runner.md)
+- [Local model adapter and Docker rehearsal](docs/local-model.md)
 - [Scenario example](examples/simulation.json)
 
 Dependencies are locked in `uv.lock`. Building and dependency installation may use the internet;
@@ -90,7 +95,8 @@ still follow the constraints in `pyproject.toml`.
 An additional Docker job builds the preflight image and runs it offline as a non-root user with a
 read-only filesystem. It verifies asset integrity and confirms AWS readiness remains blocked.
 It also runs supervised simulations on a persistent volume, kills a test controller, and verifies
-recovery and retained evidence from fresh containers. Run it locally with
+recovery and retained evidence from fresh containers. A loopback HTTP fixture also exercises the
+model adapter, timeouts, and interrupted inference reservations without loading a model. Run it locally with
 `sh scripts/check-docker-simulation.sh`; see the Docker lab guide above.
 
 The workflow uses commit-pinned actions, a fixed uv version, read-only repository permissions,

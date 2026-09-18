@@ -1,4 +1,4 @@
-"""Evidence-enabled simulation lifecycle. No agent, AWS, or independent watchdog service."""
+"""Supervised lab lifecycle with pure tools; no real backend or independent watchdog."""
 
 from contextlib import contextmanager
 from pathlib import Path
@@ -8,6 +8,7 @@ from containment.admission import manifest_digest, resolve
 from containment.backend import FakeBackend
 from containment.evidence import Collector, Grant, Limits, ProducerEvent
 from containment.lifecycle import SimulationController
+from containment.local_model import LocalModelScript, run_model
 from containment.models import Deployment, Manifest, Outcome, SafetyPolicy, Scenario, State
 from containment.replay import ReplayScript, run_replay
 from containment.replay_journal import BudgetExceeded
@@ -66,13 +67,20 @@ class SupervisedSimulationController(SimulationController):
         self.supervisor = EvidenceSupervisor(collector, watchdog)
 
     def run(
-        self, scenario: Scenario, policy: SafetyPolicy, replay: ReplayScript | None = None
+        self,
+        scenario: Scenario,
+        policy: SafetyPolicy,
+        replay: ReplayScript | LocalModelScript | None = None,
     ) -> UUID:
         manifest = resolve(scenario, policy)
         if scenario.deployment != Deployment.FAKE:
             raise ValueError("Real execution backends are not implemented")
         if replay is not None:
-            replay = ReplayScript.model_validate_json(replay.model_dump_json())
+            kind = LocalModelScript if isinstance(replay, LocalModelScript) else ReplayScript
+            replay = kind.model_validate_json(replay.model_dump_json())
+        expected = "local" if isinstance(replay, LocalModelScript) else "replay"
+        if scenario.inference != expected:
+            raise ValueError("Runner and scenario inference mode do not match")
         # Finish old work before creating a new marker. Never replay an interrupted workload.
         self.reconcile()
         trial_id = uuid4()
@@ -82,7 +90,21 @@ class SupervisedSimulationController(SimulationController):
         try:
             if replay is not None:
                 self.store.replay.register(
-                    trial_id, replay.digest(), scenario.budget, replay.total_output_bytes
+                    trial_id,
+                    replay.digest(),
+                    scenario.budget,
+                    replay.total_output_bytes,
+                    metadata=(
+                        {
+                            "runner": "local_llama_cpp",
+                            "accounting": "server_reported_tokens",
+                            "configuration": replay.model_dump(mode="json"),
+                            "server_identity_verified": False,
+                            "server_termination_confirmed": False,
+                        }
+                        if isinstance(replay, LocalModelScript)
+                        else None
+                    ),
                 )
             grants = self.collector.create(
                 trial_id,
@@ -156,7 +178,8 @@ class SupervisedSimulationController(SimulationController):
             if report["state"] != "active":
                 raise RuntimeError("Replay lease revoked")
 
-        result = run_replay(trial_id, script, self.store.replay, checkpoint, emit)
+        runner = run_model if isinstance(script, LocalModelScript) else run_replay
+        result = runner(trial_id, script, self.store.replay, checkpoint, emit)
         raw = ProducerEvent(sequence=1, kind="note", text=result).model_dump_json().encode()
         self.supervisor.ingest(trial_id, grants[1].token, raw)
         checkpoint()
