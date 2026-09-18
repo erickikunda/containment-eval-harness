@@ -1,8 +1,9 @@
 # Private AWS foundation: local preparation
 
 This directory supports **preparation**, not AWS provisioning or experiment admission. The example
-account, security group, nodegroup/profile names, and ECR digest are placeholders. No code here
-contacts AWS or Kubernetes, applies manifests, pushes images, or grants execution authority.
+account, security group, nodegroup/profile names, and ECR digest are placeholders. Planning and
+preflight run locally. The separate [AWS inspector](../docs/aws-inspection.md) contacts AWS only
+with explicit `--live`. No command applies manifests, pushes images, or grants execution authority.
 
 ## Profiles
 
@@ -117,10 +118,10 @@ The script uses a fresh temporary build context and retains the JSON report in
 
 ## Remaining slice 3 work
 
-This is slice **3a**: config, rendering, image preparation, and local probes. Slice **3b** needs the
-chosen AWS account/region/cluster and reviewed network topology, then infrastructure definitions,
-read-only AWS checks, real connectivity/identity tests, fresh worker-bound probe receipts, and
-external watchdog integration. No real backend is enabled by this change. Do not treat the
+Slice **3a** provides config, rendering, image preparation, and local probes. The first part of
+**3b** adds read-only AWS metadata checks and an IAM policy template. The remaining work needs
+the chosen AWS account/region/cluster and reviewed network topology, infrastructure definitions,
+real connectivity/identity tests, fresh worker-bound probe receipts, and external watchdog integration. No real backend is enabled by this change. Do not treat the
 preflight's local JSON as a signed or independent attestation.
 
 ## Primary references
