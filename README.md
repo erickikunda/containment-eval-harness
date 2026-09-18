@@ -11,6 +11,10 @@ containers/VMs, AWS provisioning, live network enforcement, model calls, indepen
 and real escape detection are not implemented. A successful fixture is not evidence of containment or agent capability.
 Real backends fail closed.
 
+A local watchdog lease core also provides hard/health deadlines, persistent revocation, and
+stop recovery for future supervisors. It is tested with simulated failures; no independent
+watchdog service or real stop adapter is deployed.
+
 ## Quick start
 
 Install Python 3.12+ and uv, then:
@@ -56,6 +60,7 @@ integration remain future work. [Evidence protocol and limits](docs/evidence-pro
 - [Evidence protocol and deterministic oracle](docs/evidence-protocol.md)
 - [AWS deployment preparation and offline image](deployment/README.md)
 - [Read-only AWS inspection and IAM policy](docs/aws-inspection.md)
+- [Watchdog lease core and integration gates](docs/watchdog.md)
 - [Scenario example](examples/simulation.json)
 
 Dependencies are locked in `uv.lock`. Building and dependency installation may use the internet;
