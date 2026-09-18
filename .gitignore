@@ -1,0 +1,14 @@
+.idea/
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+build/
+dist/
+.coverage
+.harness/
+.cocoindex_code/
+# CocoIndex Code (ccc)
+/.cocoindex_code/

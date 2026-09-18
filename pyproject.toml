@@ -1,0 +1,29 @@
+[build-system]
+requires = ["hatchling>=1.26,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "containment-eval-harness"
+version = "0.1.0"
+description = "Capability-gated containment evaluation orchestration"
+requires-python = ">=3.12"
+dependencies = ["pydantic>=2.12,<3"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8,<10", "ruff>=0.12,<1"]
+
+[project.scripts]
+containment = "containment.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/containment"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
