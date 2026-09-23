@@ -4,7 +4,13 @@ import sqlite3
 import sys
 from pathlib import Path
 
-from containment.admission import development_policy, manifest_digest, replay_policy, resolve
+from containment.admission import (
+    development_policy,
+    local_model_policy,
+    manifest_digest,
+    replay_policy,
+    resolve,
+)
 from containment.aws_inspection import AwsSnapshot, InspectionTarget, assess, inspection_policy
 from containment.backend import FakeBackend
 from containment.deployment import (
@@ -15,6 +21,7 @@ from containment.deployment import (
 )
 from containment.fixtures import run_fixture
 from containment.lifecycle import controller_lock
+from containment.local_model import LocalModelScript
 from containment.models import Outcome, Scenario, State
 from containment.preflight import preflight
 from containment.replay import ReplayScript
@@ -28,13 +35,15 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--state-dir", type=Path, default=Path(".harness"))
     commands = parser.add_subparsers(dest="command", required=True)
-    for name in ("validate", "simulate", "replay"):
+    for name in ("validate", "simulate", "replay", "local-model"):
         command = commands.add_parser(name)
         command.add_argument("scenario", type=Path)
-        if name == "replay":
+        if name in {"replay", "local-model"}:
             command.add_argument("script", type=Path)
         if name == "validate":
-            command.add_argument("--replay", action="store_true")
+            mode = command.add_mutually_exclusive_group()
+            mode.add_argument("--replay", action="store_true")
+            mode.add_argument("--local-model", action="store_true")
     commands.add_parser("list")
     commands.add_parser("reconcile")
     fixture = commands.add_parser("evidence-fixture")
@@ -105,19 +114,22 @@ def main(argv: list[str] | None = None) -> int:
         scenario = None
         replay = None
         policy = (
-            replay_policy()
+            local_model_policy()
+            if args.command == "local-model" or getattr(args, "local_model", False)
+            else replay_policy()
             if args.command == "replay" or getattr(args, "replay", False)
             else development_policy()
         )
-        if args.command in {"validate", "simulate", "replay"}:
+        if args.command in {"validate", "simulate", "replay", "local-model"}:
             scenario = Scenario.model_validate_json(args.scenario.read_text())
             manifest = resolve(scenario, policy)
-            if args.command == "replay":
+            if args.command in {"replay", "local-model"}:
                 with args.script.open("rb") as stream:
                     raw = stream.read(1_048_577)
                 if len(raw) > 1_048_576:
                     raise ValueError("Replay script exceeds 1 MiB")
-                replay = ReplayScript.model_validate_json(raw)
+                script_type = LocalModelScript if args.command == "local-model" else ReplayScript
+                replay = script_type.model_validate_json(raw)
             if args.command == "validate":
                 print(json.dumps({"admission": "static_only", "digest": manifest_digest(manifest)}))
                 return 0
@@ -136,7 +148,7 @@ def main(argv: list[str] | None = None) -> int:
                     with supervised_controller(
                         store, FakeBackend(args.state_dir / "resources"), args.state_dir
                     ) as controller:
-                        if args.command in {"simulate", "replay"}:
+                        if args.command in {"simulate", "replay", "local-model"}:
                             assert scenario is not None
                             ids = [controller.run(scenario, policy, replay)]
                         else:

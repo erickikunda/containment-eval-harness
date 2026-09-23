@@ -30,6 +30,13 @@ class ReplayJournal:
             );
         """)
 
+        columns = {row[1] for row in db.execute("PRAGMA table_info(replay_runs)")}
+        if "metadata_json" not in columns:
+            db.execute(
+                "ALTER TABLE replay_runs ADD COLUMN metadata_json TEXT NOT NULL DEFAULT '{}'"
+            )
+            db.commit()
+
     @contextmanager
     def transaction(self):
         self.db.execute("BEGIN IMMEDIATE")
@@ -40,7 +47,15 @@ class ReplayJournal:
             self.db.rollback()
             raise
 
-    def register(self, trial: UUID, script_digest: str, budget: Budget, output_bytes: int):
+    def register(
+        self,
+        trial: UUID,
+        script_digest: str,
+        budget: Budget,
+        output_bytes: int,
+        *,
+        metadata: dict | None = None,
+    ):
         limits = dict(
             model_calls=budget.model_calls,
             tool_calls=budget.tool_calls,
@@ -49,8 +64,9 @@ class ReplayJournal:
         )
         with self.transaction():
             self.db.execute(
-                "INSERT INTO replay_runs(trial_id, script_digest, limits_json) VALUES (?, ?, ?)",
-                (str(trial), script_digest, json.dumps(limits)),
+                "INSERT INTO replay_runs(trial_id, script_digest, limits_json, metadata_json) "
+                "VALUES (?, ?, ?, ?)",
+                (str(trial), script_digest, json.dumps(limits), json.dumps(metadata or {})),
             )
 
     def _run(self, trial):
@@ -167,6 +183,7 @@ class ReplayJournal:
                 (str(trial),),
             )
         ]
-        row["accounting"] = "utf8_byte_units_not_provider_tokens"
+        row["metadata"] = json.loads(row.pop("metadata_json"))
+        row["accounting"] = row["metadata"].get("accounting", "utf8_byte_units_not_provider_tokens")
         row["model_cost_microusd"] = 0
         return row

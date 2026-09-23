@@ -164,3 +164,6 @@ uses a real SIGKILL after a pure tool executes but before its result is committe
 Next adapters can connect a local model or private inference service to the same reservation and
 evidence concepts. They require explicit protocol, identity, timeout, accounting, and deployment
 work. Do not replace the pure tools with host execution to approximate that future work.
+
+For actual local inference with the same pure tools, see the separate
+[local model adapter](local-model.md). Replay remains fully scripted and retains byte accounting.
